@@ -1,3 +1,5 @@
+'use strict';
+
 // Find intersection of RAY & SEGMENT
 function getIntersection(ray, segment) {
 
@@ -21,13 +23,18 @@ function getIntersection(ray, segment) {
     return null;
   }
 
-  // SOLVE FOR T1 & T2
+  // SOLVE FOR T2
   // r_px+r_dx*T1 = s_px+s_dx*T2 && r_py+r_dy*T1 = s_py+s_dy*T2
   // ==> T1 = (s_px+s_dx*T2-r_px)/r_dx = (s_py+s_dy*T2-r_py)/r_dy
   // ==> s_px*r_dy + s_dx*T2*r_dy - r_px*r_dy = s_py*r_dx + s_dy*T2*r_dx - r_py*r_dx
   // ==> T2 = (r_dx*(s_py-r_py) + r_dy*(r_px-s_px))/(s_dx*r_dy - s_dy*r_dx)
-  var T2 = (r_dx * (s_py - r_py) + r_dy * (r_px - s_px)) / (s_dx * r_dy - s_dy * r_dx);
-  var T1 = (s_px + s_dx * T2 - r_px) / r_dx;
+  var T2 = (r_dx*(s_py-r_py) + r_dy*(r_px-s_px))/(s_dx*r_dy - s_dy*r_dx);
+  // SOLVE FOR T1
+  // r_px+r_dx*T1 = s_px+s_dx*T2 && r_py+r_dy*T1 = s_py+s_dy*T2
+  // ==> T2 = (r_px+r_dx*T1-s_px)/s_dx = (r_py+r_dy*T1-s_py)/s_dy
+  // ==> r_px*s_dy + r_dx*T1*s_dy - s_px*s_dy = r_py*s_dx + r_dy*T1*s_dx - s_py*s_dx
+  // ==> T1 = (s_dx*(r_py-s_py) + s_dy*(s_px-r_px))/(r_dx*s_dy - r_dy*s_dx)
+  var T1 = (s_dx*(r_py-s_py) + s_dy*(s_px-r_px))/(r_dx*s_dy - r_dy*s_dx);
 
   // Must be within parametic whatevers for RAY/SEGMENT
   if (T1 < 0) return null;
@@ -47,10 +54,37 @@ function getIntersection(ray, segment) {
 // DRAWING
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
-function draw() {
+
+var segments = [];
+var widthRatio = 1;
+
+function resizeLines(lines, wd) {
+  let segs = [];
+  for (let i=0; i<lines.length; i++) {
+    segs.push({
+      a: {x: lines[i].a.x * wd, y: lines[i].a.y * wd},
+      b: {x: lines[i].b.x * wd, y: lines[i].b.y * wd}
+    })
+  }
+  return segs;
+}
+
+function draw(lines) {
+
+  // resize to window
+  ctx.canvas.width  = window.innerWidth;
+  ctx.canvas.height = window.innerHeight;
 
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Update segments relative to the difference between 640x360 and the size of the window
+  let wrd = window.innerWidth/640;
+
+  if (wrd !== widthRatio) {
+    widthRatio = wrd;
+    segments = resizeLines(lines, wrd)
+  }
 
   // Draw segments
   ctx.strokeStyle = "#999";
@@ -63,25 +97,8 @@ function draw() {
   }
 
   // Get all unique points
-  var points = (function (segments) {
-    var a = [];
-    segments.forEach(function (seg) {
-      a.push(seg.a, seg.b);
-    });
-    return a;
-  })(segments);
-  var uniquePoints = (function (points) {
-    var set = {};
-    return points.filter(function (p) {
-      var key = p.x + "," + p.y;
-      if (key in set) {
-        return false;
-      } else {
-        set[key] = true;
-        return true;
-      }
-    });
-  })(points);
+  var points = getPoints(segments);
+  var uniquePoints = uniquePts(points);
 
   // Get all angles
   var uniqueAngles = [];
@@ -153,8 +170,29 @@ function draw() {
 
 }
 
+function getPoints(segments) {
+  var a = [];
+  segments.forEach(function (seg) {
+    a.push(seg.a, seg.b);
+  });
+  return a;
+}
+
+function uniquePts(points) {
+  var set = {};
+  return points.filter(function (p) {
+    var key = p.x + "," + p.y;
+    if (key in set) {
+      return false;
+    } else {
+      set[key] = true;
+      return true;
+    }
+  });
+}
+
 // LINE SEGMENTS
-var segments = [
+var walls = [
 
   // Border
   {a: {x: 0, y: 0}, b: {x: 640, y: 0}},
@@ -203,7 +241,7 @@ var updateCanvas = true;
 function drawLoop() {
   requestAnimationFrame(drawLoop);
   if (updateCanvas) {
-    draw();
+    draw(walls);
     updateCanvas = false;
   }
 }
@@ -261,4 +299,4 @@ function handleInput(element, onMoveFunc) {
     event.preventDefault();
   });
 
-};
+}
